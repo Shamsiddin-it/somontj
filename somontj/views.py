@@ -61,7 +61,9 @@ def product_list(request):
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 def product_detail(request, pk):
- 
+    print(Product.objects.active())
+    print(Product.objects.deleted())
+    print(Product.objects.total_products())
     try:
         product = Product.objects.get(pk=pk)
     except Product.DoesNotExist:
@@ -122,3 +124,35 @@ def user_detail(request, pk):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+from rest_framework import viewsets
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from rest_framework import status
+from .models import Product
+from .serializers import ProductSerializer
+
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.active()  # By default, show only non-deleted products
+    serializer_class = ProductSerializer
+    
+    @action(detail=True, methods=['post'])
+    def soft_delete(self, request, pk=None):
+        product = self.get_object()
+        Product.objects.soft_delete(product.id)
+        return Response({'status': 'Product soft-deleted'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        product = self.get_object()
+        Product.objects.restore(product.id)
+        return Response({'status': 'Product restored'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['delete'])
+    def hard_delete(self, request, pk=None):
+        product = self.get_object()
+        Product.objects.hard_delete(product.id)
+        return Response({'status': 'Product permanently deleted'}, status=status.HTTP_204_NO_CONTENT)
+
